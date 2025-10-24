@@ -70,6 +70,27 @@
                 "SearchGenAICDKConstructs",
                 "ExplainCDKNagRule"
             ]
+        },
+        "content-publishing-mcp": {
+            "command": "python",
+            "args": [
+                "scripts/run_mcp_server.py"
+            ],
+            "env": {
+                "MCP_LOG_LEVEL": "INFO",
+                "MCP_ENABLE_ALL_TOOLS": "true"
+            },
+            "disabled": false,
+            "autoApprove": [
+                "get_brand_metadata",
+                "list_publishers",
+                "get_publisher_analytics",
+                "calculate_trust_score_metrics",
+                "create_publisher_profile",
+                "get_branded_content",
+                "validate_attribution",
+                "track_brand_visibility"
+            ]
         }
     }
 }
