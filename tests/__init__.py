@@ -1,0 +1,1 @@
+"""Test package for content publishing MCP server."""
