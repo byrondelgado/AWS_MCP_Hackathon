@@ -19,6 +19,8 @@ try:
     )
     from ...models.content import Article, BrandedContentResponse, ContentAccessRequest
     from ...models.brand import BrandMetadata, ComplianceTracking
+    from ...models.access_control import AccessLevel, AccessVerificationRequest
+    from ...services.access_control_manager import AccessControlManager
 except ImportError:
     # Fall back to direct imports (for standalone execution)
     from schemas.mcp_tools import (
@@ -31,6 +33,8 @@ except ImportError:
     )
     from models.content import Article, BrandedContentResponse, ContentAccessRequest
     from models.brand import BrandMetadata, ComplianceTracking
+    from models.access_control import AccessLevel, AccessVerificationRequest
+    from services.access_control_manager import AccessControlManager
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,7 @@ class ContentTools:
         """Initialize content tools with sample data."""
         self._sample_content = self._create_sample_content()
         self._access_tokens = {}  # In-memory storage for demo
+        self._access_manager = AccessControlManager()  # Access control manager
         
     def _create_sample_content(self) -> Dict[str, Article]:
         """Create sample content for demonstration."""
@@ -141,24 +146,48 @@ class ContentTools:
                     reason="Content not found"
                 )
             
-            # Check user access level (simplified logic for demo)
-            user_access_level = self._check_user_access_level(input_data.user_id)
+            # Parse access level
+            try:
+                requested_level = AccessLevel(input_data.access_level.lower())
+            except ValueError:
+                return CheckContentAccessOutput(
+                    access_granted=False,
+                    access_level="none",
+                    reason=f"Invalid access level: {input_data.access_level}"
+                )
             
-            # Determine if access is granted
-            access_granted = self._is_access_granted(user_access_level, input_data.access_level)
-            
-            result = CheckContentAccessOutput(
-                access_granted=access_granted,
-                access_level=user_access_level,
-                reason="Access granted" if access_granted else f"Insufficient access level. Required: {input_data.access_level}, User has: {user_access_level}"
+            # Create verification request
+            request = AccessVerificationRequest(
+                user_id=input_data.user_id,
+                content_id=input_data.content_id,
+                requested_access_level=requested_level,
+                requesting_interface=input_data.requesting_interface or "unknown"
             )
             
-            if access_granted and user_access_level in ["premium", "enterprise"]:
-                # Set expiration for premium access
-                expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
-                result.expires_at = expires_at
+            # Verify access using AccessControlManager
+            response = self._access_manager.verify_content_access(request)
             
-            logger.info(f"Access check result: {access_granted} for user {input_data.user_id}")
+            result = CheckContentAccessOutput(
+                access_granted=response.access_granted,
+                access_level=response.access_level.value,
+                reason="Access granted" if response.access_granted else response.denial_reason
+            )
+            
+            if response.access_granted:
+                result.access_token = response.access_token
+                result.expires_at = response.expires_at.isoformat() if response.expires_at else None
+            else:
+                # Add upgrade information
+                if response.upgrade_required:
+                    result.upgrade_required = True
+                    result.current_tier = response.current_subscription_tier.value if response.current_subscription_tier else None
+                    result.required_tier = response.required_subscription_tier.value if response.required_subscription_tier else None
+                
+                # Add pay-per-view information
+                if response.pay_per_view_available:
+                    result.pay_per_view_price = response.pay_per_view_price
+            
+            logger.info(f"Access check result: {response.access_granted} for user {input_data.user_id}")
             return result
             
         except Exception as e:
@@ -183,33 +212,39 @@ class ContentTools:
                     error_message="Content not found"
                 )
             
-            # Validate payment token if provided
-            if input_data.payment_token:
-                payment_valid = self._validate_payment_token(input_data.payment_token)
-                if not payment_valid:
-                    return GrantTemporaryAccessOutput(
-                        access_granted=False,
-                        error_message="Invalid payment token"
-                    )
+            # Validate payment token
+            if not input_data.payment_token:
+                return GrantTemporaryAccessOutput(
+                    access_granted=False,
+                    error_message="Payment token is required"
+                )
             
-            # Generate temporary access token
-            access_token = f"temp_{input_data.user_id}_{input_data.content_id}_{datetime.utcnow().timestamp()}"
-            expires_at = datetime.utcnow() + timedelta(seconds=input_data.duration)
+            # Calculate amount paid (in real implementation, this would come from payment processor)
+            amount_paid = 2.99  # Default pay-per-view price
             
-            # Store access token (in-memory for demo)
-            self._access_tokens[access_token] = {
-                "user_id": input_data.user_id,
-                "content_id": input_data.content_id,
-                "expires_at": expires_at,
-                "access_level": "premium"
-            }
+            # Grant temporary access using AccessControlManager
+            grant, message = self._access_manager.grant_temporary_access(
+                user_id=input_data.user_id,
+                content_id=input_data.content_id,
+                duration_seconds=input_data.duration,
+                payment_token=input_data.payment_token,
+                amount_paid=amount_paid
+            )
             
-            logger.info(f"Temporary access granted: {access_token}")
+            if not grant:
+                return GrantTemporaryAccessOutput(
+                    access_granted=False,
+                    error_message=message
+                )
+            
+            logger.info(f"Temporary access granted: {grant.grant_id}")
             
             return GrantTemporaryAccessOutput(
                 access_granted=True,
-                access_token=access_token,
-                expires_at=expires_at.isoformat()
+                access_token=grant.grant_id,
+                expires_at=grant.expires_at.isoformat(),
+                access_level=grant.access_level.value,
+                amount_paid=grant.amount_paid
             )
             
         except Exception as e:

@@ -41,9 +41,10 @@ class CheckContentAccessInput(BaseModel):
     
     user_id: str = Field(..., description="User identifier")
     content_id: str = Field(..., description="Content identifier")
-    access_level: Literal["free", "premium", "enterprise"] = Field(
+    access_level: Literal["public", "registered", "premium", "enterprise", "restricted"] = Field(
         ..., description="Requested access level"
     )
+    requesting_interface: Optional[str] = Field(None, description="AI interface making the request")
 
 
 class CheckContentAccessOutput(BaseModel):
@@ -52,7 +53,12 @@ class CheckContentAccessOutput(BaseModel):
     access_granted: bool = Field(..., description="Whether access is granted")
     access_level: str = Field(..., description="Actual access level granted")
     reason: Optional[str] = Field(None, description="Reason for access decision")
+    access_token: Optional[str] = Field(None, description="Access token if granted")
     expires_at: Optional[str] = Field(None, description="Access expiration time (ISO format)")
+    upgrade_required: Optional[bool] = Field(None, description="Whether subscription upgrade is needed")
+    current_tier: Optional[str] = Field(None, description="User's current subscription tier")
+    required_tier: Optional[str] = Field(None, description="Required subscription tier for access")
+    pay_per_view_price: Optional[float] = Field(None, description="Pay-per-view price if available")
 
 
 class GrantTemporaryAccessInput(BaseModel):
@@ -70,6 +76,8 @@ class GrantTemporaryAccessOutput(BaseModel):
     access_granted: bool = Field(..., description="Whether temporary access was granted")
     access_token: Optional[str] = Field(None, description="Temporary access token")
     expires_at: Optional[str] = Field(None, description="Access expiration time (ISO format)")
+    access_level: Optional[str] = Field(None, description="Access level granted")
+    amount_paid: Optional[float] = Field(None, description="Amount paid for access")
     error_message: Optional[str] = Field(None, description="Error message if access denied")
 
 

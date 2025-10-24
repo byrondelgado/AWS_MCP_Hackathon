@@ -36,6 +36,19 @@ from .validation import (
     validate_metadata_completeness
 )
 
+from .access_control import (
+    SubscriptionTier,
+    AccessLevel,
+    ContentValueTier,
+    SubscriptionPlan,
+    UserSubscription,
+    AccessToken,
+    ContentValueAssessment,
+    AccessVerificationRequest,
+    AccessVerificationResponse,
+    TemporaryAccessGrant
+)
+
 __all__ = [
     # Brand models
     "PublisherMetadata",
@@ -56,6 +69,18 @@ __all__ = [
     "Publisher",
     "BrandedContentResponse",
     "ContentAccessRequest",
+    
+    # Access control models
+    "SubscriptionTier",
+    "AccessLevel",
+    "ContentValueTier",
+    "SubscriptionPlan",
+    "UserSubscription",
+    "AccessToken",
+    "ContentValueAssessment",
+    "AccessVerificationRequest",
+    "AccessVerificationResponse",
+    "TemporaryAccessGrant",
     
     # Validation
     "ValidationResult",
