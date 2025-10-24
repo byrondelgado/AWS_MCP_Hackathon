@@ -7,12 +7,22 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import uuid
 
-from ...schemas.mcp_tools import (
-    CalculateDynamicPricingInput,
-    CalculateDynamicPricingOutput,
-    ProcessSubscriptionInput,
-    ProcessSubscriptionOutput
-)
+try:
+    # Try relative imports first (for when running as module)
+    from ...schemas.mcp_tools import (
+        CalculateDynamicPricingInput,
+        CalculateDynamicPricingOutput,
+        ProcessSubscriptionInput,
+        ProcessSubscriptionOutput
+    )
+except ImportError:
+    # Fall back to direct imports (for standalone execution)
+    from schemas.mcp_tools import (
+        CalculateDynamicPricingInput,
+        CalculateDynamicPricingOutput,
+        ProcessSubscriptionInput,
+        ProcessSubscriptionOutput
+    )
 
 logger = logging.getLogger(__name__)
 

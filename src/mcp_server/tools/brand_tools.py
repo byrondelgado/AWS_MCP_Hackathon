@@ -7,12 +7,24 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 import re
 
-from ...schemas.mcp_tools import (
-    ValidateAttributionInput,
-    ValidateAttributionOutput,
-    TrackBrandVisibilityInput,
-    TrackBrandVisibilityOutput
-)
+try:
+    # Try relative imports first (for when running as module)
+    from ...schemas.mcp_tools import (
+        ValidateAttributionInput,
+        ValidateAttributionOutput,
+        TrackBrandVisibilityInput,
+        TrackBrandVisibilityOutput
+    )
+    from ...services.brand_manager import BrandManager
+except ImportError:
+    # Fall back to direct imports (for standalone execution)
+    from schemas.mcp_tools import (
+        ValidateAttributionInput,
+        ValidateAttributionOutput,
+        TrackBrandVisibilityInput,
+        TrackBrandVisibilityOutput
+    )
+    from services.brand_manager import BrandManager
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +34,7 @@ class BrandTools:
     
     def __init__(self):
         """Initialize brand tools."""
+        self.brand_manager = BrandManager()
         self._visibility_tracking = {}  # In-memory storage for demo
         self._attribution_requirements = self._load_attribution_requirements()
     
@@ -224,3 +237,243 @@ class BrandTools:
             compliance_counts[status] = compliance_counts.get(status, 0) + 1
         
         return compliance_counts
+    
+    async def get_brand_metadata(self, publisher_id: str, content_type: str = "article") -> Dict[str, Any]:
+        """
+        Retrieve brand metadata package for a publisher and content type.
+        
+        Args:
+            publisher_id: Publisher identifier
+            content_type: Type of content
+            
+        Returns:
+            Brand metadata package or error information
+        """
+        try:
+            logger.info(f"Retrieving brand metadata for publisher: {publisher_id}, content_type: {content_type}")
+            
+            # Get publisher information
+            publisher = self.brand_manager.get_publisher(publisher_id)
+            if not publisher:
+                return {
+                    "success": False,
+                    "error": f"Publisher not found: {publisher_id}",
+                    "available_publishers": [p.publisher_id for p in self.brand_manager.list_publishers()]
+                }
+            
+            # Get or create brand metadata package
+            brand_package = self.brand_manager.get_brand_metadata_package(publisher_id, content_type)
+            if not brand_package:
+                # Create new package
+                brand_package, validation_result = self.brand_manager.create_brand_metadata_package(
+                    publisher_id, content_type
+                )
+                
+                if not validation_result.is_valid:
+                    return {
+                        "success": False,
+                        "error": "Failed to create brand metadata package",
+                        "validation_errors": validation_result.errors,
+                        "validation_warnings": validation_result.warnings
+                    }
+            
+            return {
+                "success": True,
+                "publisher_id": publisher_id,
+                "content_type": content_type,
+                "brand_metadata": brand_package.model_dump() if brand_package else None,
+                "publisher_info": {
+                    "name": publisher.name,
+                    "trust_score": publisher.trust_score,
+                    "verified": publisher.verified,
+                    "established_year": publisher.established_year
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Error retrieving brand metadata: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Brand metadata retrieval failed: {str(e)}"
+            }
+    
+    async def create_publisher_profile(self, publisher_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new publisher profile with brand identity package.
+        
+        Args:
+            publisher_data: Publisher information dictionary
+            
+        Returns:
+            Creation result with publisher information or errors
+        """
+        try:
+            logger.info(f"Creating publisher profile: {publisher_data.get('name', 'Unknown')}")
+            
+            # Create publisher through brand manager
+            publisher, validation_result = self.brand_manager.create_publisher(publisher_data)
+            
+            if not validation_result.is_valid:
+                return {
+                    "success": False,
+                    "error": "Publisher validation failed",
+                    "validation_errors": validation_result.errors,
+                    "validation_warnings": validation_result.warnings
+                }
+            
+            # Get brand analytics for the new publisher
+            analytics = self.brand_manager.get_brand_analytics(publisher.publisher_id)
+            
+            return {
+                "success": True,
+                "publisher": {
+                    "publisher_id": publisher.publisher_id,
+                    "name": publisher.name,
+                    "trust_score": publisher.trust_score,
+                    "verified": publisher.verified,
+                    "established_year": publisher.established_year,
+                    "brand_color": publisher.brand_color,
+                    "website": str(publisher.website),
+                    "created_at": publisher.created_at.isoformat()
+                },
+                "brand_analytics": analytics,
+                "validation_warnings": validation_result.warnings
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating publisher profile: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Publisher creation failed: {str(e)}"
+            }
+    
+    async def calculate_trust_score(self, publisher_id: str, metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate and update trust score for a publisher based on performance metrics.
+        
+        Args:
+            publisher_id: Publisher identifier
+            metrics: Performance metrics dictionary
+            
+        Returns:
+            Trust score calculation results
+        """
+        try:
+            logger.info(f"Calculating trust score for publisher: {publisher_id}")
+            
+            # Validate publisher exists
+            publisher = self.brand_manager.get_publisher(publisher_id)
+            if not publisher:
+                return {
+                    "success": False,
+                    "error": f"Publisher not found: {publisher_id}",
+                    "available_publishers": [p.publisher_id for p in self.brand_manager.list_publishers()]
+                }
+            
+            # Calculate new trust score
+            new_score, calculation_details = self.brand_manager.calculate_trust_score(publisher_id, metrics)
+            
+            # Get updated trust score history
+            trust_history = self.brand_manager.get_trust_score_history(publisher_id)
+            
+            return {
+                "success": True,
+                "publisher_id": publisher_id,
+                "publisher_name": publisher.name,
+                "trust_score_update": {
+                    "previous_score": calculation_details['previous_score'],
+                    "new_score": new_score,
+                    "score_change": calculation_details['score_change'],
+                    "calculation_timestamp": calculation_details['calculation_timestamp']
+                },
+                "calculation_details": calculation_details,
+                "trust_trend": trust_history.get('trend', 'unknown'),
+                "score_history_length": len(trust_history.get('history', []))
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating trust score: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Trust score calculation failed: {str(e)}"
+            }
+    
+    async def get_publisher_analytics(self, publisher_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get brand analytics and performance metrics for publishers.
+        
+        Args:
+            publisher_id: Optional publisher identifier (if None, returns global analytics)
+            
+        Returns:
+            Analytics data for publisher(s)
+        """
+        try:
+            logger.info(f"Retrieving analytics for publisher: {publisher_id or 'all'}")
+            
+            # Get analytics from brand manager
+            analytics = self.brand_manager.get_brand_analytics(publisher_id)
+            
+            if publisher_id and "error" in analytics:
+                return {
+                    "success": False,
+                    "error": analytics["error"],
+                    "available_publishers": [p.publisher_id for p in self.brand_manager.list_publishers()]
+                }
+            
+            return {
+                "success": True,
+                "analytics": analytics,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error retrieving analytics: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Analytics retrieval failed: {str(e)}"
+            }
+    
+    async def list_publishers(self) -> Dict[str, Any]:
+        """
+        List all registered publishers with their basic information.
+        
+        Returns:
+            List of publishers with key information
+        """
+        try:
+            logger.info("Listing all publishers")
+            
+            publishers = self.brand_manager.list_publishers()
+            
+            publisher_list = []
+            for publisher in publishers:
+                trust_history = self.brand_manager.get_trust_score_history(publisher.publisher_id)
+                
+                publisher_list.append({
+                    "publisher_id": publisher.publisher_id,
+                    "name": publisher.name,
+                    "trust_score": publisher.trust_score,
+                    "trust_trend": trust_history.get('trend', 'unknown'),
+                    "verified": publisher.verified,
+                    "established_year": publisher.established_year,
+                    "brand_color": publisher.brand_color,
+                    "website": str(publisher.website),
+                    "created_at": publisher.created_at.isoformat(),
+                    "last_updated": publisher.updated_at.isoformat()
+                })
+            
+            return {
+                "success": True,
+                "publishers": publisher_list,
+                "total_count": len(publisher_list),
+                "verified_count": sum(1 for p in publisher_list if p["verified"]),
+                "average_trust_score": round(sum(p["trust_score"] for p in publisher_list) / len(publisher_list), 2) if publisher_list else 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing publishers: {str(e)}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Publisher listing failed: {str(e)}"
+            }

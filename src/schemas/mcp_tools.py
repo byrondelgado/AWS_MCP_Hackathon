@@ -223,6 +223,115 @@ class GenerateComplianceReportOutput(BaseModel):
     compliance_score: float = Field(..., ge=0.0, le=1.0, description="Overall compliance score")
 
 
+# Brand Metadata Management Schemas
+
+class GetBrandMetadataInput(BaseModel):
+    """Input schema for get_brand_metadata MCP tool."""
+    
+    publisher_id: str = Field(..., description="Publisher identifier")
+    content_type: str = Field("article", description="Type of content (article, blog_post, etc.)")
+
+
+class GetBrandMetadataOutput(BaseModel):
+    """Output schema for get_brand_metadata MCP tool."""
+    
+    success: bool = Field(..., description="Whether the request was successful")
+    publisher_id: Optional[str] = Field(None, description="Publisher identifier")
+    content_type: Optional[str] = Field(None, description="Content type")
+    brand_metadata: Optional[Dict[str, Any]] = Field(None, description="Complete brand metadata package")
+    publisher_info: Optional[Dict[str, Any]] = Field(None, description="Publisher information")
+    error: Optional[str] = Field(None, description="Error message if request failed")
+
+
+class CreatePublisherProfileInput(BaseModel):
+    """Input schema for create_publisher_profile MCP tool."""
+    
+    publisher_id: str = Field(..., description="Unique publisher identifier")
+    name: str = Field(..., description="Publisher name")
+    description: Optional[str] = Field(None, description="Publisher description")
+    website: str = Field(..., description="Publisher website URL")
+    contact_email: str = Field(..., description="Publisher contact email")
+    logo_url: str = Field(..., description="Publisher logo URL")
+    brand_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$", description="Brand color in hex format")
+    established_year: int = Field(..., ge=1400, le=2100, description="Year established")
+    trust_score: float = Field(5.0, ge=0.0, le=10.0, description="Initial trust score")
+    verified: bool = Field(False, description="Whether publisher is verified")
+    editorial_standards_url: Optional[str] = Field(None, description="Editorial standards document URL")
+    fact_checking_policy: Optional[str] = Field(None, description="Fact-checking policy description")
+    default_attribution_requirements: Optional[Dict[str, Any]] = Field(None, description="Default attribution settings")
+    content_licensing_terms: Optional[Dict[str, Any]] = Field(None, description="Content licensing terms")
+
+
+class CreatePublisherProfileOutput(BaseModel):
+    """Output schema for create_publisher_profile MCP tool."""
+    
+    success: bool = Field(..., description="Whether publisher was created successfully")
+    publisher: Optional[Dict[str, Any]] = Field(None, description="Created publisher information")
+    brand_analytics: Optional[Dict[str, Any]] = Field(None, description="Initial brand analytics")
+    validation_warnings: List[str] = Field(default_factory=list, description="Validation warnings")
+    error: Optional[str] = Field(None, description="Error message if creation failed")
+    validation_errors: List[str] = Field(default_factory=list, description="Validation errors")
+
+
+class CalculateTrustScoreMetricsInput(BaseModel):
+    """Input schema for calculate_trust_score_metrics MCP tool."""
+    
+    publisher_id: str = Field(..., description="Publisher identifier")
+    fact_check_accuracy: float = Field(0.8, ge=0.0, le=1.0, description="Fact-checking accuracy rate")
+    editorial_quality: float = Field(0.7, ge=0.0, le=1.0, description="Editorial quality score")
+    source_reliability: float = Field(0.8, ge=0.0, le=1.0, description="Source reliability score")
+    correction_rate: float = Field(0.1, ge=0.0, le=1.0, description="Content correction rate (lower is better)")
+    reader_trust: float = Field(0.7, ge=0.0, le=1.0, description="Reader trust survey score")
+    industry_recognition: float = Field(0.6, ge=0.0, le=1.0, description="Industry recognition score")
+    transparency_score: float = Field(0.8, ge=0.0, le=1.0, description="Transparency and disclosure score")
+
+
+class CalculateTrustScoreMetricsOutput(BaseModel):
+    """Output schema for calculate_trust_score_metrics MCP tool."""
+    
+    success: bool = Field(..., description="Whether calculation was successful")
+    publisher_id: Optional[str] = Field(None, description="Publisher identifier")
+    publisher_name: Optional[str] = Field(None, description="Publisher name")
+    trust_score_update: Optional[Dict[str, Any]] = Field(None, description="Trust score update information")
+    calculation_details: Optional[Dict[str, Any]] = Field(None, description="Detailed calculation breakdown")
+    trust_trend: Optional[str] = Field(None, description="Trust score trend")
+    score_history_length: Optional[int] = Field(None, description="Number of historical score records")
+    error: Optional[str] = Field(None, description="Error message if calculation failed")
+
+
+class GetPublisherAnalyticsInput(BaseModel):
+    """Input schema for get_publisher_analytics MCP tool."""
+    
+    publisher_id: Optional[str] = Field(None, description="Publisher identifier (if None, returns global analytics)")
+
+
+class GetPublisherAnalyticsOutput(BaseModel):
+    """Output schema for get_publisher_analytics MCP tool."""
+    
+    success: bool = Field(..., description="Whether analytics retrieval was successful")
+    analytics: Optional[Dict[str, Any]] = Field(None, description="Analytics data")
+    timestamp: Optional[str] = Field(None, description="Analytics timestamp")
+    error: Optional[str] = Field(None, description="Error message if retrieval failed")
+
+
+class ListPublishersInput(BaseModel):
+    """Input schema for list_publishers MCP tool."""
+    
+    include_analytics: bool = Field(True, description="Whether to include analytics summary")
+    verified_only: bool = Field(False, description="Whether to return only verified publishers")
+
+
+class ListPublishersOutput(BaseModel):
+    """Output schema for list_publishers MCP tool."""
+    
+    success: bool = Field(..., description="Whether listing was successful")
+    publishers: List[Dict[str, Any]] = Field(default_factory=list, description="List of publishers")
+    total_count: int = Field(0, description="Total number of publishers")
+    verified_count: int = Field(0, description="Number of verified publishers")
+    average_trust_score: float = Field(0.0, description="Average trust score across all publishers")
+    error: Optional[str] = Field(None, description="Error message if listing failed")
+
+
 # MCP Tool Registry
 MCP_TOOL_SCHEMAS = {
     "get_branded_content": {
@@ -274,5 +383,31 @@ MCP_TOOL_SCHEMAS = {
         "input_schema": GenerateComplianceReportInput,
         "output_schema": GenerateComplianceReportOutput,
         "description": "Generate compliance reports for attribution and brand visibility"
+    },
+    # Brand Metadata Management Tools
+    "get_brand_metadata": {
+        "input_schema": GetBrandMetadataInput,
+        "output_schema": GetBrandMetadataOutput,
+        "description": "Retrieve brand metadata package for a publisher and content type"
+    },
+    "create_publisher_profile": {
+        "input_schema": CreatePublisherProfileInput,
+        "output_schema": CreatePublisherProfileOutput,
+        "description": "Create a new publisher profile with brand identity package"
+    },
+    "calculate_trust_score_metrics": {
+        "input_schema": CalculateTrustScoreMetricsInput,
+        "output_schema": CalculateTrustScoreMetricsOutput,
+        "description": "Calculate and update trust score based on performance metrics"
+    },
+    "get_publisher_analytics": {
+        "input_schema": GetPublisherAnalyticsInput,
+        "output_schema": GetPublisherAnalyticsOutput,
+        "description": "Get brand analytics and performance metrics for publishers"
+    },
+    "list_publishers": {
+        "input_schema": ListPublishersInput,
+        "output_schema": ListPublishersOutput,
+        "description": "List all registered publishers with their information"
     }
 }

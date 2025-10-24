@@ -25,11 +25,20 @@ from mcp.types import (
 )
 from pydantic import ValidationError
 
-from ..schemas.mcp_tools import MCP_TOOL_SCHEMAS
-from ..models.content import BrandedContentResponse, ContentAccessRequest
-from ..models.brand import BrandMetadata, ComplianceTracking
-from .tools import ContentTools, BrandTools, AnalyticsTools, PricingTools
-from .config import get_config, is_tool_enabled
+try:
+    # Try relative imports first (for when running as module)
+    from ..schemas.mcp_tools import MCP_TOOL_SCHEMAS
+    from ..models.content import BrandedContentResponse, ContentAccessRequest
+    from ..models.brand import BrandMetadata, ComplianceTracking
+    from .tools import ContentTools, BrandTools, AnalyticsTools, PricingTools
+    from .config import get_config, is_tool_enabled
+except ImportError:
+    # Fall back to direct imports (for standalone execution)
+    from schemas.mcp_tools import MCP_TOOL_SCHEMAS
+    from models.content import BrandedContentResponse, ContentAccessRequest
+    from models.brand import BrandMetadata, ComplianceTracking
+    from mcp_server.tools import ContentTools, BrandTools, AnalyticsTools, PricingTools
+    from mcp_server.config import get_config, is_tool_enabled
 
 
 # Configure logging
@@ -152,6 +161,34 @@ class ContentPublishingMCPServer:
         
         elif tool_name == "generate_compliance_report":
             return await self.analytics_tools.generate_compliance_report(validated_input)
+        
+        # Brand Metadata Management Tools
+        elif tool_name == "get_brand_metadata":
+            return await self.brand_tools.get_brand_metadata(
+                validated_input.publisher_id, 
+                validated_input.content_type
+            )
+        
+        elif tool_name == "create_publisher_profile":
+            return await self.brand_tools.create_publisher_profile(validated_input.model_dump())
+        
+        elif tool_name == "calculate_trust_score_metrics":
+            metrics = {
+                "fact_check_accuracy": validated_input.fact_check_accuracy,
+                "editorial_quality": validated_input.editorial_quality,
+                "source_reliability": validated_input.source_reliability,
+                "correction_rate": validated_input.correction_rate,
+                "reader_trust": validated_input.reader_trust,
+                "industry_recognition": validated_input.industry_recognition,
+                "transparency_score": validated_input.transparency_score
+            }
+            return await self.brand_tools.calculate_trust_score(validated_input.publisher_id, metrics)
+        
+        elif tool_name == "get_publisher_analytics":
+            return await self.brand_tools.get_publisher_analytics(validated_input.publisher_id)
+        
+        elif tool_name == "list_publishers":
+            return await self.brand_tools.list_publishers()
         
         else:
             raise ValueError(f"Tool handler not implemented: {tool_name}")

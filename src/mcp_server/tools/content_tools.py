@@ -7,16 +7,30 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import json
 
-from ...schemas.mcp_tools import (
-    GetBrandedContentInput,
-    GetBrandedContentOutput,
-    CheckContentAccessInput,
-    CheckContentAccessOutput,
-    GrantTemporaryAccessInput,
-    GrantTemporaryAccessOutput
-)
-from ...models.content import Article, BrandedContentResponse, ContentAccessRequest
-from ...models.brand import BrandMetadata, ComplianceTracking
+try:
+    # Try relative imports first (for when running as module)
+    from ...schemas.mcp_tools import (
+        GetBrandedContentInput,
+        GetBrandedContentOutput,
+        CheckContentAccessInput,
+        CheckContentAccessOutput,
+        GrantTemporaryAccessInput,
+        GrantTemporaryAccessOutput
+    )
+    from ...models.content import Article, BrandedContentResponse, ContentAccessRequest
+    from ...models.brand import BrandMetadata, ComplianceTracking
+except ImportError:
+    # Fall back to direct imports (for standalone execution)
+    from schemas.mcp_tools import (
+        GetBrandedContentInput,
+        GetBrandedContentOutput,
+        CheckContentAccessInput,
+        CheckContentAccessOutput,
+        GrantTemporaryAccessInput,
+        GrantTemporaryAccessOutput
+    )
+    from models.content import Article, BrandedContentResponse, ContentAccessRequest
+    from models.brand import BrandMetadata, ComplianceTracking
 
 logger = logging.getLogger(__name__)
 

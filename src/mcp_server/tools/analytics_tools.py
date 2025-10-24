@@ -7,14 +7,26 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import json
 
-from ...schemas.mcp_tools import (
-    CalculateTrustScoreInput,
-    CalculateTrustScoreOutput,
-    AnalyzeEngagementInput,
-    AnalyzeEngagementOutput,
-    GenerateComplianceReportInput,
-    GenerateComplianceReportOutput
-)
+try:
+    # Try relative imports first (for when running as module)
+    from ...schemas.mcp_tools import (
+        CalculateTrustScoreInput,
+        CalculateTrustScoreOutput,
+        AnalyzeEngagementInput,
+        AnalyzeEngagementOutput,
+        GenerateComplianceReportInput,
+        GenerateComplianceReportOutput
+    )
+except ImportError:
+    # Fall back to direct imports (for standalone execution)
+    from schemas.mcp_tools import (
+        CalculateTrustScoreInput,
+        CalculateTrustScoreOutput,
+        AnalyzeEngagementInput,
+        AnalyzeEngagementOutput,
+        GenerateComplianceReportInput,
+        GenerateComplianceReportOutput
+    )
 
 logger = logging.getLogger(__name__)
 
